@@ -1,5 +1,13 @@
 # 中文TTS语音克隆
 
+## 数据集预处理
+
+### synthesizer
+
+```
+# 多个数据集请在前面添加--skip_existing
+python synthesizer_preprocess_audio.py /dataset --skip_existing
+```
 
 # Real-Time Voice Cloning
 This repository is an implementation of [Transfer Learning from Speaker Verification to
