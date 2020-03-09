@@ -1,4 +1,4 @@
-from synthesizer.preprocess import preprocess_thchs30
+from synthesizer.preprocess import preprocess_thchs30,preprocess_data_aishell
 from synthesizer.hparams import hparams
 from utils.argutils import print_args
 from pathlib import Path
@@ -37,4 +37,5 @@ if __name__ == "__main__":
     # Preprocess the dataset
     print_args(args, parser)
     args.hparams = hparams.parse(args.hparams)
-    preprocess_thchs30(**vars(args))    
+    # preprocess_thchs30(**vars(args))   
+    preprocess_data_aishell(**vars(args)) 

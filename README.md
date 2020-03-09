@@ -1,3 +1,6 @@
+# 中文TTS语音克隆
+
+
 # Real-Time Voice Cloning
 This repository is an implementation of [Transfer Learning from Speaker Verification to
 Multispeaker Text-To-Speech Synthesis](https://arxiv.org/pdf/1806.04558.pdf) (SV2TTS) with a vocoder that works in real-time. Feel free to check [my thesis](https://matheo.uliege.be/handle/2268.2/6801) if you're curious or if you're looking for info I haven't documented yet (don't hesitate to make an issue for that too). Mostly I would recommend giving a quick look to the figures beyond the introduction.
