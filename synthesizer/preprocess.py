@@ -332,7 +332,7 @@ def preprocess_data_aishell(datasets_root: Path, out_dir: Path, n_processes: int
         v = v.strip().replace("\n","").split(" ")
         dict_info[v[0]] = " ".join(v[1:])
 
-    input_dirs = [dataset_root.joinpath("wav")]
+    input_dirs = [dataset_root.joinpath("wav/train")]
     print("\n    ".join(map(str, ["Using data from:"] + input_dirs)))
     assert all(input_dir.exists() for input_dir in input_dirs)
     
@@ -345,7 +345,7 @@ def preprocess_data_aishell(datasets_root: Path, out_dir: Path, n_processes: int
     metadata_file = metadata_fpath.open("a" if skip_existing else "w", encoding="utf-8")
 
     # Preprocess the dataset
-    speaker_dirs = list(chain.from_iterable(input_dir.glob("train") for input_dir in input_dirs))
+    speaker_dirs = list(chain.from_iterable(input_dir.glob("*") for input_dir in input_dirs))
     func = partial(preprocess_speaker_data_aishell, out_dir=out_dir, skip_existing=skip_existing, 
                    hparams=hparams, dict_info=dict_info)
     job = Pool(n_processes).imap(func, speaker_dirs)
@@ -375,23 +375,23 @@ def preprocess_speaker_data_aishell(speaker_dir, out_dir: Path, skip_existing: b
         split = "\\"
     else:
         split = "/" 
-    for book_dir in speaker_dir.glob("*"):
+    # for book_dir in speaker_dir.glob("*"):
         # Gather the utterance audios and texts
 
-        for wav_fpath in book_dir.glob("*.wav"):
-            # D:\dataset\data_aishell\wav\train\S0002\BAC009S0002W0122.wav
-                
-            # Process each sub-utterance
+    for wav_fpath in speaker_dir.glob("*.wav"):
+        # D:\dataset\data_aishell\wav\train\S0002\BAC009S0002W0122.wav
             
-            name = str(wav_fpath).split(split)[-1]
-            key = name.split(".")[0]
-            words = dict_info.get(key)
-            if not words:
-                continue
-            sub_basename = "%s_%02d" % (name, 0)
-            wav, text = split_on_silences_data_aishell(wav_fpath, words, hparams)
-            metadata.append(process_utterance(wav, text, out_dir, sub_basename, 
-                                                  skip_existing, hparams))
+        # Process each sub-utterance
+        
+        name = str(wav_fpath).split(split)[-1]
+        key = name.split(".")[0]
+        words = dict_info.get(key)
+        if not words:
+            continue
+        sub_basename = "%s_%02d" % (name, 0)
+        wav, text = split_on_silences_data_aishell(wav_fpath, words, hparams)
+        metadata.append(process_utterance(wav, text, out_dir, sub_basename, 
+                                              skip_existing, hparams))
     
     return [m for m in metadata if m is not None]
 
