@@ -25,7 +25,7 @@ pinyin = my_pinyin.pinyin
 
 
 def preprocess_librispeech(datasets_root: Path, out_dir: Path, n_processes: int, 
-                           skip_existing: bool, hparams):
+                           skip_existing: bool, hparams,dataset=None):
     # Gather the input directories
     dataset_root = datasets_root.joinpath("LibriSpeech")
     # input_dirs = [dataset_root.joinpath("train-clean-100"), 
@@ -240,7 +240,7 @@ def create_embeddings(synthesizer_root: Path, encoder_model_fpath: Path, n_proce
 
 # thchs30
 def preprocess_thchs30(datasets_root: Path, out_dir: Path, n_processes: int, 
-                           skip_existing: bool, hparams):
+                           skip_existing: bool, hparams,dataset=None):
     # Gather the input directories
     dataset_root = datasets_root.joinpath("data_thchs30")
     input_dirs = [dataset_root.joinpath("train")]
@@ -315,7 +315,7 @@ def split_on_silences_thchs30(wav_fpath, words, hparams):
 
 # data_aishell
 def preprocess_data_aishell(datasets_root: Path, out_dir: Path, n_processes: int, 
-                           skip_existing: bool, hparams):
+                           skip_existing: bool, hparams,dataset=None):
     # Gather the input directories
     dataset_root = datasets_root.joinpath("data_aishell")
     # input_dirs = [dataset_root.joinpath("train-clean-100"), 
@@ -397,6 +397,101 @@ def preprocess_speaker_data_aishell(speaker_dir, out_dir: Path, skip_existing: b
 
   
 def split_on_silences_data_aishell(wav_fpath, words, hparams):
+    # Load the audio waveform
+    wav, _ = librosa.load(wav_fpath, hparams.sample_rate)
+    wav = librosa.effects.trim(wav, top_db= 40, frame_length=2048, hop_length=512)[0]
+    if hparams.rescale:
+        wav = wav / np.abs(wav).max() * hparams.rescaling_max
+    
+    resp = pinyin(words, style=Style.TONE3)
+    res = [v[0] for v in resp if v[0].strip()]
+    res = " ".join(res)
+    return wav, res
+
+# aidatatang_200zh
+def preprocess_aidatatang_200zh(datasets_root: Path, out_dir: Path, n_processes: int, 
+                           skip_existing: bool, hparams,dataset=None):
+    # Gather the input directories
+    dataset_root = datasets_root.joinpath("aidatatang_200zh")
+    # input_dirs = [dataset_root.joinpath("train-clean-100"), 
+    #               dataset_root.joinpath("train-clean-360")]
+
+    dict_info = {}
+    transcript_dirs = dataset_root.joinpath("transcript/aidatatang_200_zh_transcript.txt")
+    with open(transcript_dirs,"rb") as fp:
+        dict_transcript = [v.decode() for v in fp]
+
+    for v in dict_transcript:
+        if not v:
+            continue
+        v = v.strip().replace("\n","").split(" ")
+        dict_info[v[0]] = " ".join(v[1:])
+
+    input_dirs = [dataset_root.joinpath("corpus/train")]
+    print("\n    ".join(map(str, ["Using data from:"] + input_dirs)))
+    assert all(input_dir.exists() for input_dir in input_dirs)
+    
+    # Create the output directories for each output file type
+    out_dir.joinpath("mels").mkdir(exist_ok=True)
+    out_dir.joinpath("audio").mkdir(exist_ok=True)
+    
+    # Create a metadata file
+    metadata_fpath = out_dir.joinpath("train.txt")
+    metadata_file = metadata_fpath.open("a" if skip_existing else "w", encoding="utf-8")
+
+    # Preprocess the dataset
+    speaker_dirs = list(chain.from_iterable(input_dir.glob("*") for input_dir in input_dirs))
+    func = partial(preprocess_speaker_aidatatang_200zh, out_dir=out_dir, skip_existing=skip_existing, 
+                   hparams=hparams, dict_info=dict_info)
+    job = Pool(n_processes).imap(func, speaker_dirs)
+    for speaker_metadata in tqdm(job, "aidatatang_200zh", len(speaker_dirs), unit="speakers"):
+        for metadatum in speaker_metadata:
+            metadata_file.write("|".join(str(x) for x in metadatum) + "\n")
+    metadata_file.close()
+
+    # Verify the contents of the metadata file
+    with metadata_fpath.open("r", encoding="utf-8") as metadata_file:
+        metadata = [line.split("|") for line in metadata_file]
+    mel_frames = sum([int(m[4]) for m in metadata])
+    timesteps = sum([int(m[3]) for m in metadata])
+    sample_rate = hparams.sample_rate
+    hours = (timesteps / sample_rate) / 3600
+    print("The dataset consists of %d utterances, %d mel frames, %d audio timesteps (%.2f hours)." %
+          (len(metadata), mel_frames, timesteps, hours))
+    print("Max input length (text chars): %d" % max(len(m[5]) for m in metadata))
+    print("Max mel frames length: %d" % max(int(m[4]) for m in metadata))
+    print("Max audio timesteps length: %d" % max(int(m[3]) for m in metadata))
+
+
+
+def preprocess_speaker_aidatatang_200zh(speaker_dir, out_dir: Path, skip_existing: bool, hparams, dict_info):
+    metadata = []
+    if platform.system() == "Windows":
+        split = "\\"
+    else:
+        split = "/" 
+    # for book_dir in speaker_dir.glob("*"):
+        # Gather the utterance audios and texts
+
+    for wav_fpath in speaker_dir.glob("*.wav"):
+        # D:\dataset\data_aishell\wav\train\S0002\BAC009S0002W0122.wav
+            
+        # Process each sub-utterance
+        
+        name = str(wav_fpath).split(split)[-1]
+        key = name.split(".")[0]
+        words = dict_info.get(key)
+        if not words:
+            continue
+        sub_basename = "%s_%02d" % (name, 0)
+        wav, text = split_on_silences_aidatatang_200zh(wav_fpath, words, hparams)
+        metadata.append(process_utterance(wav, text, out_dir, sub_basename, 
+                                              skip_existing, hparams))
+    
+    return [m for m in metadata if m is not None]
+
+  
+def split_on_silences_aidatatang_200zh(wav_fpath, words, hparams):
     # Load the audio waveform
     wav, _ = librosa.load(wav_fpath, hparams.sample_rate)
     wav = librosa.effects.trim(wav, top_db= 40, frame_length=2048, hop_length=512)[0]

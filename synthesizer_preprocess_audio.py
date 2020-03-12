@@ -1,4 +1,6 @@
-from synthesizer.preprocess import preprocess_thchs30,preprocess_data_aishell
+from synthesizer.preprocess import preprocess_thchs30
+from synthesizer.preprocess import preprocess_data_aishell
+from synthesizer.preprocess import preprocess_aidatatang_200zh
 from synthesizer.hparams import hparams
 from utils.argutils import print_args
 from pathlib import Path
@@ -24,6 +26,10 @@ if __name__ == "__main__":
         "interrupted.")
     parser.add_argument("--hparams", type=str, default="", help=\
         "Hyperparameter overrides as a comma-separated list of name-value pairs")
+
+    parser.add_argument("-d", "--dataset", type=str, default="", help=\
+        "what dataset to process.")
+
     args = parser.parse_args()
     
     # Process the arguments
@@ -37,5 +43,12 @@ if __name__ == "__main__":
     # Preprocess the dataset
     print_args(args, parser)
     args.hparams = hparams.parse(args.hparams)
-    # preprocess_thchs30(**vars(args))   
-    preprocess_data_aishell(**vars(args)) 
+
+    if not args.dataset:
+        raise ValueError("please input dataset, support aidatatang_200zh | data_aishell | thchs30")
+    if args.dataset == "thchs30":
+        preprocess_thchs30(**vars(args))
+    elif args.dataset == "aidatatang_200zh":
+        preprocess_aidatatang_200zh(**vars(args)) 
+    elif args.dataset == "data_aishell":
+        preprocess_data_aishell(**vars(args)) 
